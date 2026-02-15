@@ -1,0 +1,158 @@
+
+:root{
+  --primary:#6c63ff;
+  --bg:#f4f6ff;
+  --card:#ffffff;
+  --text:#222;
+}
+
+body.dark{
+  --primary:#8b87ff;
+  --bg:#121212;
+  --card:#1e1e1e;
+  --text:#f5f5f5;
+}
+
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  font-family:Segoe UI,Tahoma;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  padding:20px;
+  transition:.3s;
+}
+
+.container{
+  max-width:900px;
+  margin:auto;
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+h1{
+  color:var(--primary);
+}
+
+.toggle{
+  background:var(--primary);
+  border:none;
+  color:white;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.card{
+  background:var(--card);
+  padding:20px;
+  border-radius:15px;
+  box-shadow:0 10px 30px rgba(0,0,0,.15);
+  margin-bottom:20px;
+  transition:.3s;
+}
+
+input,select,button{
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  font-size:1em;
+}
+
+input,select{
+  width:100%;
+  margin-bottom:10px;
+  background:#ececec;
+}
+
+body.dark input,
+body.dark select{
+  background:#2a2a2a;
+  color:white;
+}
+
+button.primary{
+  background:var(--primary);
+  color:white;
+  cursor:pointer;
+  width:100%;
+}
+
+.task{
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:10px;
+  background:rgba(0,0,0,.05);
+  transition:.3s;
+}
+
+body.dark .task{
+  background:rgba(255,255,255,.05);
+}
+
+.task.active{
+  border-left:5px solid var(--primary);
+  transform:scale(1.02);
+}
+
+.badge{
+  padding:4px 10px;
+  border-radius:12px;
+  font-size:.8em;
+  color:white;
+}
+
+.easy{background:#2ecc71}
+.medium{background:#f1c40f;color:#333}
+.hard{background:#e74c3c}
+
+.task-buttons{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+.task-buttons button{
+  flex:1;
+  cursor:pointer;
+}
+
+.timer-box{
+  text-align:center;
+}
+
+#timer{
+  font-size:3em;
+  margin:15px 0;
+  color:var(--primary);
+}
+
+.controls button{
+  margin:5px;
+  padding:10px 15px;
+  background:var(--primary);
+  color:white;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.stats{
+  margin-top:15px;
+  font-size:.9em;
+}
+
+@media(max-width:600px){
+  .task-buttons{
+    flex-direction:column;
+  }
+}

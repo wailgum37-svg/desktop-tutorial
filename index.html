@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="index.css">
+<title>Study Planner Pro</title>
+</head>
+<body>
+
+<div class="container">
+
+<header>
+  <h1>📘 Study Planner Pro</h1>
+  <button class="toggle" onclick="toggleDark()">🌙 Dark</button>
+</header>
+
+<div class="card">
+  <input id="title" placeholder="Task title">
+  <input id="date" type="date">
+  <select id="difficulty">
+    <option value="easy">🟢 Easy</option>
+    <option value="medium">🟡 Medium</option>
+    <option value="hard">🔴 Hard</option>
+  </select>
+  <button class="primary" onclick="addTask()">➕ Add Task</button>
+</div>
+
+<div class="card">
+  <div id="tasks"></div>
+</div>
+
+<div class="card timer-box">
+  <h3 id="mode">Select a task</h3>
+  <div id="timer">40:00</div>
+  <div class="controls">
+    <button onclick="start()">Start</button>
+    <button onclick="pause()">Pause</button>
+    <button onclick="resetTimer()">Reset</button>
+  </div>
+  <div class="stats">
+    🟢 <span id="sEasy">0</span> |
+    🟡 <span id="sMedium">0</span> |
+    🔴 <span id="sHard">0</span>
+  </div>
+</div>
+<script>
+let tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
+let active=null;
+let timer=null;
+let time=2400;
+let studying=true;
+
+function save(){
+  localStorage.setItem("tasks",JSON.stringify(tasks));
+}
+
+function render(){
+  const box=document.getElementById("tasks");
+  box.innerHTML="";
+  tasks.forEach((t,i)=>{
+    const div=document.createElement("div");
+    div.className="task"+(i===active?" active":"");
+    div.innerHTML=`
+      <b>${t.title}</b><br>
+      📅 ${t.date}<br>
+      <span class="badge ${t.difficulty}">${t.difficulty}</span>
+      🍅 ${t.pomodoros}
+      <div class="task-buttons">
+        <button onclick="selectTask(${i})">Select</button>
+        <button onclick="deleteTask(${i})">Delete</button>
+      </div>
+    `;
+    box.appendChild(div);
+  });
+  updateStats();
+}
+
+function updateStats(){
+  let e=0,m=0,h=0;
+  tasks.forEach(t=>{
+    if(t.difficulty==="easy") e+=t.pomodoros;
+    if(t.difficulty==="medium") m+=t.pomodoros;
+    if(t.difficulty==="hard") h+=t.pomodoros;
+  });
+  sEasy.textContent=e;
+  sMedium.textContent=m;
+  sHard.textContent=h;
+}
+
+function addTask(){
+  const title=document.getElementById("title").value.trim();
+  const date=document.getElementById("date").value;
+  const diff=document.getElementById("difficulty").value;
+  if(!title||!date) return alert("Fill all fields");
+  tasks.push({title,date,difficulty:diff,pomodoros:0});
+  save();
+  render();
+}
+
+function selectTask(i){
+  active=i;
+  time=2400;
+  studying=true;
+  document.getElementById("mode").textContent="Studying: "+tasks[i].title;
+  updateTimer();
+  render();
+}
+
+function deleteTask(i){
+  tasks.splice(i,1);
+  if(active===i) active=null;
+  save();
+  render();
+}
+
+function updateTimer(){
+  const m=Math.floor(time/60).toString().padStart(2,"0");
+  const s=(time%60).toString().padStart(2,"0");
+  document.getElementById("timer").textContent=`${m}:${s}`;
+}
+
+function start(){
+  if(active===null) return alert("Select a task");
+  if(timer) return;
+  timer=setInterval(()=>{
+    time--;
+    updateTimer();
+    if(time<=0){
+      clearInterval(timer);
+      timer=null;
+      if(studying){
+        tasks[active].pomodoros++;
+        save();
+        render();
+      }
+      studying=!studying;
+      time=studying?2400:300;
+      document.getElementById("mode").textContent=studying?"Studying":"Break";
+      updateTimer();
+    }
+  },1000);
+}
+
+function pause(){
+  clearInterval(timer);
+  timer=null;
+}
+
+function resetTimer(){
+  clearInterval(timer);
+  timer=null;
+  time=2400;
+  studying=true;
+  document.getElementById("mode").textContent="Select a task";
+  updateTimer();
+}
+
+function toggleDark(){
+  document.body.classList.toggle("dark");
+}
+
+render();
+updateTimer();
+</script>
+</div>
+
+</body>
+</html>
