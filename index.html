@@ -1,83 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-RE66V1CSDE"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-RE66V1CSDE');
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="index.css">
 <title>Study Planner Pro</title>
+<style>
+  /* Minimal additions only — everything else is your CSS */
+  .ring-container{
+    position:relative;
+    width:180px;height:180px;
+    margin:10px auto 5px;
+  }
+  .ring-container svg{
+    transform:rotate(-90deg);
+    width:100%;height:100%;
+  }
+  .ring-bg{fill:none;stroke:rgba(108,99,255,.15);stroke-width:6}
+  .ring-progress{fill:none;stroke:var(--primary);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .9s linear}
+  .ring-text{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+  }
+  .toast{
+    position:fixed;bottom:24px;right:24px;
+    background:#333;color:#fff;
+    padding:12px 18px;border-radius:10px;
+    font-size:.85em;z-index:999;
+    opacity:0;transform:translateY(10px);
+    transition:.3s;pointer-events:none;
+    border-left:3px solid var(--primary);
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .task{animation:slideIn .2s ease both}
+</style>
 </head>
 <body>
 
 <div class="container">
 
-<header>
-  <h1>📘 Study Planner Pro</h1>
-  <button class="toggle" onclick="toggleDark()">🌙 Dark</button>
-</header>
+  <header>
+    <h1>📘 Study Planner Pro</h1>
+    <button class="toggle" onclick="toggleDark()">🌙 Dark</button>
+  </header>
 
-<div class="card">
-  <input id="title" placeholder="Task title">
-  <input id="date" type="date">
-  <select id="difficulty">
-    <option value="easy">🟢 Easy</option>
-    <option value="medium">🟡 Medium</option>
-    <option value="hard">🔴 Hard</option>
-  </select>
-  <button class="primary" onclick="addTask()">➕ Add Task</button>
-</div>
-
-<div class="card">
-  <div id="tasks"></div>
-</div>
-
-<div class="card timer-box">
-  <h3 id="mode">Select a task</h3>
-  <div id="timer">40:00</div>
-  <div class="controls">
-    <button onclick="start()">Start</button>
-    <button onclick="pause()">Pause</button>
-    <button onclick="resetTimer()">Reset</button>
+  <div class="card">
+    <input id="title" placeholder="Task title">
+    <input id="date" type="date">
+    <select id="difficulty">
+      <option value="easy">🟢 Easy</option>
+      <option value="medium">🟡 Medium</option>
+      <option value="hard">🔴 Hard</option>
+    </select>
+    <button class="primary" onclick="addTask()">➕ Add Task</button>
   </div>
-  <div class="stats">
-    🟢 <span id="sEasy">0</span> |
-    🟡 <span id="sMedium">0</span> |
-    🔴 <span id="sHard">0</span>
+
+  <div class="card">
+    <div id="tasks"></div>
   </div>
+
+  <div class="card timer-box">
+    <h3 id="mode">Select a task</h3>
+    <div class="ring-container">
+      <svg viewBox="0 0 180 180">
+        <circle class="ring-bg" cx="90" cy="90" r="80"/>
+        <circle class="ring-progress" id="ring" cx="90" cy="90" r="80"
+          stroke-dasharray="503" stroke-dashoffset="0"/>
+      </svg>
+      <div class="ring-text">
+        <div id="timer" style="margin:0">40:00</div>
+        <div style="font-size:.75em;opacity:.5" id="phase">focus</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button onclick="start()">▶ Start</button>
+      <button onclick="pause()">⏸ Pause</button>
+      <button onclick="resetTimer()">↺ Reset</button>
+    </div>
+    <div class="stats">
+      🟢 <span id="sEasy">0</span> &nbsp;|&nbsp;
+      🟡 <span id="sMedium">0</span> &nbsp;|&nbsp;
+      🔴 <span id="sHard">0</span>
+    </div>
+  </div>
+
 </div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-let tasks = JSON.parse(localStorage.getItem("tasks")||"[]");
-let active=null;
-let timer=null;
-let time=2400;
-let studying=true;
+let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+let active = null;
+let timerInterval = null;
+let time = 2400;
+let totalTime = 2400;
+let studying = true;
 
-function save(){
-  localStorage.setItem("tasks",JSON.stringify(tasks));
+const CIRCUMFERENCE = 503;
+
+// Pre-fill today's date
+document.getElementById("date").valueAsDate = new Date();
+
+function save() { localStorage.setItem("tasks", JSON.stringify(tasks)); }
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2800);
 }
 
-function render(){
-  const box=document.getElementById("tasks");
-  box.innerHTML="";
-  tasks.forEach((t,i)=>{
-    const div=document.createElement("div");
-    div.className="task"+(i===active?" active":"");
-    div.innerHTML=`
-      <b>${t.title}</b><br>
-      📅 ${t.date}<br>
-      <span class="badge ${t.difficulty}">${t.difficulty}</span>
+function render() {
+  const box = document.getElementById("tasks");
+  if (!tasks.length) {
+    box.innerHTML = `<p style="text-align:center;opacity:.4;padding:20px">No tasks yet — add one above!</p>`;
+    updateStats();
+    return;
+  }
+  box.innerHTML = "";
+  tasks.forEach((t, i) => {
+    const div = document.createElement("div");
+    div.className = "task" + (i === active ? " active" : "");
+    div.innerHTML = `
+      <b>${escHtml(t.title)}</b><br>
+      📅 ${formatDate(t.date)}&nbsp;&nbsp;
+      <span class="badge ${t.difficulty}">${t.difficulty}</span>&nbsp;
       🍅 ${t.pomodoros}
       <div class="task-buttons">
-        <button onclick="selectTask(${i})">Select</button>
-        <button onclick="deleteTask(${i})">Delete</button>
+        <button onclick="selectTask(${i})">▷ Select</button>
+        <button onclick="deleteTask(${i})">🗑 Delete</button>
       </div>
     `;
     box.appendChild(div);
@@ -85,95 +138,112 @@ function render(){
   updateStats();
 }
 
-function updateStats(){
-  let e=0,m=0,h=0;
-  tasks.forEach(t=>{
-    if(t.difficulty==="easy") e+=t.pomodoros;
-    if(t.difficulty==="medium") m+=t.pomodoros;
-    if(t.difficulty==="hard") h+=t.pomodoros;
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return new Date(+y, +m-1, +day).toLocaleDateString("en-US", {month:"short", day:"numeric"});
+}
+
+function updateStats() {
+  let e=0, m=0, h=0;
+  tasks.forEach(t => {
+    if (t.difficulty === "easy") e += t.pomodoros;
+    else if (t.difficulty === "medium") m += t.pomodoros;
+    else h += t.pomodoros;
   });
-  sEasy.textContent=e;
-  sMedium.textContent=m;
-  sHard.textContent=h;
+  document.getElementById("sEasy").textContent = e;
+  document.getElementById("sMedium").textContent = m;
+  document.getElementById("sHard").textContent = h;
 }
 
-function addTask(){
-  const title=document.getElementById("title").value.trim();
-  const date=document.getElementById("date").value;
-  const diff=document.getElementById("difficulty").value;
-  if(!title||!date) return alert("Fill all fields");
-  tasks.push({title,date,difficulty:diff,pomodoros:0});
-  save();
+function addTask() {
+  const title = document.getElementById("title").value.trim();
+  const date  = document.getElementById("date").value;
+  const diff  = document.getElementById("difficulty").value;
+  if (!title) { toast("⚠️ Please enter a task title"); return; }
+  if (!date)  { toast("⚠️ Please select a due date");  return; }
+  tasks.push({ title, date, difficulty: diff, pomodoros: 0 });
+  save(); render();
+  document.getElementById("title").value = "";
+  toast("✅ Task added!");
+}
+
+function selectTask(i) {
+  active = i;
+  resetTimer(false);
+  document.getElementById("mode").textContent = "📖 " + tasks[i].title;
   render();
+  toast("▶ Task selected — press Start!");
 }
 
-function selectTask(i){
-  active=i;
-  time=2400;
-  studying=true;
-  document.getElementById("mode").textContent="Studying: "+tasks[i].title;
-  updateTimer();
-  render();
+function deleteTask(i) {
+  if (active === i) { active = null; resetTimer(false); }
+  else if (active > i) { active--; }
+  tasks.splice(i, 1);
+  save(); render();
+  toast("🗑 Task removed");
 }
 
-function deleteTask(i){
-  tasks.splice(i,1);
-  if(active===i) active=null;
-  save();
-  render();
+function updateTimerDisplay() {
+  const m = Math.floor(time / 60).toString().padStart(2, "0");
+  const s = (time % 60).toString().padStart(2, "0");
+  document.getElementById("timer").textContent = `${m}:${s}`;
+
+  const pct = time / totalTime;
+  document.getElementById("ring").style.strokeDashoffset = CIRCUMFERENCE * (1 - pct);
 }
 
-function updateTimer(){
-  const m=Math.floor(time/60).toString().padStart(2,"0");
-  const s=(time%60).toString().padStart(2,"0");
-  document.getElementById("timer").textContent=`${m}:${s}`;
-}
-
-function start(){
-  if(active===null) return alert("Select a task");
-  if(timer) return;
-  timer=setInterval(()=>{
+function start() {
+  if (active === null) { toast("⚠️ Select a task first!"); return; }
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
     time--;
-    updateTimer();
-    if(time<=0){
-      clearInterval(timer);
-      timer=null;
-      if(studying){
+    updateTimerDisplay();
+    if (time <= 0) {
+      clearInterval(timerInterval); timerInterval = null;
+      if (studying) {
         tasks[active].pomodoros++;
-        save();
-        render();
+        save(); render();
+        toast("🍅 Pomodoro done! Take a 5-min break.");
+      } else {
+        toast("☕ Break over! Back to work.");
       }
-      studying=!studying;
-      time=studying?2400:300;
-      document.getElementById("mode").textContent=studying?"Studying":"Break";
-      updateTimer();
+      studying = !studying;
+      totalTime = time = studying ? 2400 : 300;
+      document.getElementById("phase").textContent = studying ? "focus" : "break";
+      document.getElementById("mode").textContent = studying ? "📖 " + tasks[active].title : "☕ Break time";
+      updateTimerDisplay();
     }
-  },1000);
+  }, 1000);
 }
 
-function pause(){
-  clearInterval(timer);
-  timer=null;
+function pause() {
+  if (!timerInterval) return;
+  clearInterval(timerInterval); timerInterval = null;
+  toast("⏸ Paused");
 }
 
-function resetTimer(){
-  clearInterval(timer);
-  timer=null;
-  time=2400;
-  studying=true;
-  document.getElementById("mode").textContent="Select a task";
-  updateTimer();
+function resetTimer(showToast = true) {
+  clearInterval(timerInterval); timerInterval = null;
+  totalTime = time = 2400; studying = true;
+  document.getElementById("phase").textContent = "focus";
+  document.getElementById("mode").textContent = active !== null ? "📖 " + tasks[active].title : "Select a task";
+  updateTimerDisplay();
+  if (showToast) toast("↺ Timer reset");
 }
 
-function toggleDark(){
+function toggleDark() {
   document.body.classList.toggle("dark");
+  document.querySelector(".toggle").textContent =
+    document.body.classList.contains("dark") ? "☀️ Light" : "🌙 Dark";
 }
 
 render();
-updateTimer();
+updateTimerDisplay();
 </script>
-</div>
-
 </body>
 </html>
-
